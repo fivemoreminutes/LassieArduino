@@ -8,23 +8,27 @@
 //int MPH = 2000000;
 int LED = 5;
 
-
-float data_in[5]; 
-float data_out[5]; // encoder positions
-
+long int data_in[4]; 
+long int data_out[] = {25,30,40,50}; // encoder positions
+int out_pos = 0;
+int j = 0;
 int pos = 0;
 int i = 0;
 
-
 bool rec_dat = false;
-
 bool full_dat = false;
 
 byte test[] = {'s', 't', 'a', 'r'};
 byte test2[] = {'d', 'o', 'n', 'e'};
 
+union u_tag{
+  byte b[4];
+  int32_t ival;
+}u;
 
-SPISettings settings(1000000, LSBFIRST, SPI_MODE0);
+union u_tag v;
+
+SPISettings settings(250000, LSBFIRST, SPI_MODE0);
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(19200);
@@ -34,54 +38,53 @@ void setup() {
   Serial.print("Arduino is Online\n");
   SPI.attachInterrupt();
   pinMode(LED,OUTPUT);
+
 }
-
-//
-union u_tag{
-  byte b[4];
-  float fval;
-
-}u;
 
 
 ISR(SPI_STC_vect) {
-  u.b[i] = SPDR;
-  i++;
 
+  u.b[i] = SPDR;
+  //Serial.println(SPDR);
+  SPDR = v.b[i];
+  i++;
+  
   if(i>3){
-    //if(u.b[0] == test[0] && u.b[1] == test[1] && u.b[2] == test[2] && u.b[3] == test[3]){
     if (check(u.b,test) == true) {
       rec_dat = true;
+      v.ival = data_out[pos];
       i = 0;
     }
-    //else if (u.b[0] == test2[0] && u.b[1] == test2[1] && u.b[2] == test2[2] && u.b[3] == test2[3]){
+
     else if (check(u.b, test2) ==true){
       rec_dat = false;
+      out_pos = 0;
+      pos = 0;
       full_dat = true;
       i = 0;
     }
     else if (rec_dat == true){
-      data_in[pos] = u.fval;
+      data_in[pos] = u.ival;
       pos++;
+      v.ival = data_out[pos];
       i = 0;
     }
-    i = 0;
-    
+
+  i = 0;
   }
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-
   if(full_dat == true){
     Serial.print("Data: [");
-    for(int j = 0; j<pos; j++){
+    for(int j = 0; j<4; j++){
           Serial.print(data_in[j]);
           Serial.print(" ") ;
     }
     
     Serial.print("]\n");
-    if (data_in[0] > 3.0){
+    if (data_in[0] > 100){
       digitalWrite(LED,HIGH);
     }
     else digitalWrite(LED,LOW);
